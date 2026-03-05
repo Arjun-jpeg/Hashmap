@@ -1,81 +1,69 @@
 import java.util.*;
 
-class ParkingLot {
+class Transaction {
+    int id;
+    int amount;
+    String merchant;
 
-    class Spot {
-        String licensePlate;
-        long entryTime;
+    Transaction(int id, int amount, String merchant) {
+        this.id = id;
+        this.amount = amount;
+        this.merchant = merchant;
+    }
+}
 
-        Spot(String plate) {
-            this.licensePlate = plate;
-            this.entryTime = System.currentTimeMillis();
-        }
+class FraudDetector {
+
+    List<Transaction> transactions = new ArrayList<>();
+
+    // Add transaction
+    public void addTransaction(int id, int amount, String merchant) {
+        transactions.add(new Transaction(id, amount, merchant));
     }
 
-    Spot[] table;
-    int size;
+    // Classic Two-Sum
+    public void findTwoSum(int target) {
 
-    ParkingLot(int capacity) {
-        table = new Spot[capacity];
-        size = capacity;
-    }
+        HashMap<Integer, Transaction> map = new HashMap<>();
 
-    // Hash function
-    public int hash(String plate) {
-        return Math.abs(plate.hashCode()) % size;
-    }
+        for (Transaction t : transactions) {
 
-    // Park vehicle using linear probing
-    public void parkVehicle(String plate) {
+            int complement = target - t.amount;
 
-        int index = hash(plate);
-        int probes = 0;
+            if (map.containsKey(complement)) {
 
-        while (table[index] != null) {
-            index = (index + 1) % size;
-            probes++;
-        }
+                Transaction other = map.get(complement);
 
-        table[index] = new Spot(plate);
-
-        System.out.println("Vehicle " + plate + " parked at spot #" + index +
-                " (" + probes + " probes)");
-    }
-
-    // Exit vehicle
-    public void exitVehicle(String plate) {
-
-        for (int i = 0; i < size; i++) {
-
-            if (table[i] != null && table[i].licensePlate.equals(plate)) {
-
-                long duration = (System.currentTimeMillis() - table[i].entryTime) / 1000;
-
-                table[i] = null;
-
-                System.out.println("Vehicle " + plate +
-                        " exited from spot #" + i +
-                        " Duration: " + duration + " seconds");
+                System.out.println("Pair Found → (" + other.id + ", " + t.id + ")");
                 return;
             }
+
+            map.put(t.amount, t);
         }
 
-        System.out.println("Vehicle not found");
+        System.out.println("No pair found");
     }
 
-    // Statistics
-    public void getStatistics() {
+    // Detect duplicate payments (same amount + merchant)
+    public void detectDuplicates() {
 
-        int occupied = 0;
+        HashMap<String, List<Integer>> map = new HashMap<>();
 
-        for (Spot s : table) {
-            if (s != null)
-                occupied++;
+        for (Transaction t : transactions) {
+
+            String key = t.amount + "-" + t.merchant;
+
+            map.putIfAbsent(key, new ArrayList<>());
+            map.get(key).add(t.id);
         }
 
-        double occupancy = (occupied * 100.0) / size;
+        for (String key : map.keySet()) {
 
-        System.out.println("Occupancy: " + occupancy + "%");
+            if (map.get(key).size() > 1) {
+                System.out.println("Duplicate transaction → " + key +
+                        " IDs: " + map.get(key));
+            }
+        }
     }
 }
 
@@ -83,14 +71,15 @@ public class Main {
 
     public static void main(String[] args) {
 
-        ParkingLot obj = new ParkingLot(10);
+        FraudDetector obj = new FraudDetector();
 
-        obj.parkVehicle("ABC1234");
-        obj.parkVehicle("ABC1235");
-        obj.parkVehicle("XYZ9999");
+        obj.addTransaction(1, 500, "StoreA");
+        obj.addTransaction(2, 300, "StoreB");
+        obj.addTransaction(3, 200, "StoreC");
+        obj.addTransaction(4, 500, "StoreA");
 
-        obj.exitVehicle("ABC1234");
+        obj.findTwoSum(500);
 
-        obj.getStatistics();
+        obj.detectDuplicates();
     }
 }
