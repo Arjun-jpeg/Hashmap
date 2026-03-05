@@ -1,71 +1,51 @@
-import java.util.*;//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
+import java.util.*;
 
-class UsernameChecker {
+class FlashSaleInventory {
 
-    HashMap<String, Integer> usernameMap = new HashMap<>();
-    HashMap<String, Integer> attemptCount = new HashMap<>();
+    HashMap<String, Integer> stockMap = new HashMap<>();
+    HashMap<String, Queue<Integer>> waitingList = new HashMap<>();
 
-    // Check availability
-    public boolean checkAvailability(String username) {
+    // Check stock
+    public int checkStock(String productId) {
+        return stockMap.getOrDefault(productId, 0);
+    }
 
-        attemptCount.put(username, attemptCount.getOrDefault(username, 0) + 1);
+    // Add product stock
+    public void addProduct(String productId, int stock) {
+        stockMap.put(productId, stock);
+    }
 
-        if (usernameMap.containsKey(username)) {
-            return false;
+    // Purchase item
+    public String purchaseItem(String productId, int userId) {
+
+        int stock = stockMap.getOrDefault(productId, 0);
+
+        if (stock > 0) {
+            stockMap.put(productId, stock - 1);
+            return "Success, " + (stock - 1) + " units remaining";
         }
 
-        return true;
-    }
+        waitingList.putIfAbsent(productId, new LinkedList<>());
+        Queue<Integer> queue = waitingList.get(productId);
 
-    // Register username
-    public void register(String username, int userId) {
-        usernameMap.put(username, userId);
-    }
+        queue.add(userId);
 
-    // Suggest alternatives
-    public List<String> suggestAlternatives(String username) {
-
-        List<String> suggestions = new ArrayList<>();
-
-        suggestions.add(username + "1");
-        suggestions.add(username + "2");
-        suggestions.add(username.replace("_", "."));
-
-        return suggestions;
-    }
-
-    // Find most attempted username
-    public String getMostAttempted() {
-
-        String most = "";
-        int max = 0;
-
-        for (String key : attemptCount.keySet()) {
-
-            if (attemptCount.get(key) > max) {
-                max = attemptCount.get(key);
-                most = key;
-            }
-        }
-
-        return most + " (" + max + " attempts)";
+        return "Added to waiting list, position #" + queue.size();
     }
 }
 
-
 public class Main {
     public static void main(String[] args) {
-        UsernameChecker obj = new UsernameChecker();
 
-        obj.register("john_doe", 101);
+        FlashSaleInventory obj = new FlashSaleInventory();
 
-        System.out.println(obj.checkAvailability("john_doe"));
-        System.out.println(obj.checkAvailability("jane_smith"));
+        obj.addProduct("IPHONE15_256GB", 3);
 
-        System.out.println(obj.suggestAlternatives("john_doe"));
+        System.out.println(obj.checkStock("IPHONE15_256GB") + " units available");
 
-        System.out.println(obj.getMostAttempted());
-
+        System.out.println(obj.purchaseItem("IPHONE15_256GB", 12345));
+        System.out.println(obj.purchaseItem("IPHONE15_256GB", 67890));
+        System.out.println(obj.purchaseItem("IPHONE15_256GB", 22222));
+        System.out.println(obj.purchaseItem("IPHONE15_256GB", 99999));
     }
 }
