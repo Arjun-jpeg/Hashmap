@@ -1,44 +1,54 @@
 import java.util.*;
 
-class AnalyticsDashboard {
+class RateLimiter {
 
-    HashMap<String, Integer> pageViews = new HashMap<>();
-    HashMap<String, Set<String>> uniqueVisitors = new HashMap<>();
-    HashMap<String, Integer> trafficSources = new HashMap<>();
+    class TokenBucket {
+        int tokens;
+        long lastReset;
 
-    // Process incoming event
-    public void processEvent(String url, String userId, String source) {
-
-        // count page views
-        pageViews.put(url, pageViews.getOrDefault(url, 0) + 1);
-
-        // track unique visitors
-        uniqueVisitors.putIfAbsent(url, new HashSet<>());
-        uniqueVisitors.get(url).add(userId);
-
-        // count traffic source
-        trafficSources.put(source, trafficSources.getOrDefault(source, 0) + 1);
+        TokenBucket(int maxTokens) {
+            this.tokens = maxTokens;
+            this.lastReset = System.currentTimeMillis();
+        }
     }
 
-    // Show dashboard
-    public void getDashboard() {
+    HashMap<String, TokenBucket> clients = new HashMap<>();
 
-        System.out.println("Top Pages:");
+    int MAX_REQUESTS = 5; // example limit (instead of 1000 for testing)
+    long WINDOW = 3600000; // 1 hour in milliseconds
 
-        for (String url : pageViews.keySet()) {
+    // Check rate limit
+    public String checkRateLimit(String clientId) {
 
-            int views = pageViews.get(url);
-            int unique = uniqueVisitors.get(url).size();
+        clients.putIfAbsent(clientId, new TokenBucket(MAX_REQUESTS));
+        TokenBucket bucket = clients.get(clientId);
 
-            System.out.println(url + " - " + views + " views (" + unique + " unique)");
+        long now = System.currentTimeMillis();
+
+        // Reset after 1 hour
+        if (now - bucket.lastReset > WINDOW) {
+            bucket.tokens = MAX_REQUESTS;
+            bucket.lastReset = now;
         }
 
-        System.out.println("\nTraffic Sources:");
-
-        for (String source : trafficSources.keySet()) {
-
-            System.out.println(source + ": " + trafficSources.get(source));
+        if (bucket.tokens > 0) {
+            bucket.tokens--;
+            return "Allowed (" + bucket.tokens + " requests remaining)";
         }
+
+        long retry = (WINDOW - (now - bucket.lastReset)) / 1000;
+        return "Denied (retry after " + retry + " seconds)";
+    }
+
+    // Show client status
+    public void getRateLimitStatus(String clientId) {
+
+        TokenBucket bucket = clients.get(clientId);
+
+        int used = MAX_REQUESTS - bucket.tokens;
+
+        System.out.println("Used: " + used);
+        System.out.println("Limit: " + MAX_REQUESTS);
     }
 }
 
@@ -46,13 +56,15 @@ public class Main {
 
     public static void main(String[] args) {
 
-        AnalyticsDashboard obj = new AnalyticsDashboard();
+        RateLimiter obj = new RateLimiter();
 
-        obj.processEvent("/article/breaking-news", "user_123", "google");
-        obj.processEvent("/article/breaking-news", "user_456", "facebook");
-        obj.processEvent("/sports/championship", "user_789", "direct");
-        obj.processEvent("/article/breaking-news", "user_123", "google");
+        System.out.println(obj.checkRateLimit("abc123"));
+        System.out.println(obj.checkRateLimit("abc123"));
+        System.out.println(obj.checkRateLimit("abc123"));
+        System.out.println(obj.checkRateLimit("abc123"));
+        System.out.println(obj.checkRateLimit("abc123"));
+        System.out.println(obj.checkRateLimit("abc123"));
 
-        obj.getDashboard();
+        obj.getRateLimitStatus("abc123");
     }
 }
