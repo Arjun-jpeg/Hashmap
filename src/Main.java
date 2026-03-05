@@ -1,71 +1,83 @@
 import java.util.*;
 
-class DNSEntry {
-    String ip;
-    long expiryTime;
+class PlagiarismDetector {
 
-    DNSEntry(String ip, int ttlSeconds) {
-        this.ip = ip;
-        this.expiryTime = System.currentTimeMillis() + (ttlSeconds * 1000);
+    HashMap<String, Set<String>> ngramMap = new HashMap<>();
+
+    // Break document into n-grams
+    public List<String> generateNgrams(String text, int n) {
+
+        String[] words = text.split(" ");
+        List<String> ngrams = new ArrayList<>();
+
+        for (int i = 0; i <= words.length - n; i++) {
+
+            String gram = "";
+            for (int j = 0; j < n; j++) {
+                gram += words[i + j] + " ";
+            }
+
+            ngrams.add(gram.trim());
+        }
+
+        return ngrams;
     }
 
-    boolean isExpired() {
-        return System.currentTimeMillis() > expiryTime;
+    // Store document n-grams
+    public void addDocument(String docId, String text) {
+
+        List<String> grams = generateNgrams(text, 3);
+
+        for (String g : grams) {
+
+            ngramMap.putIfAbsent(g, new HashSet<>());
+            ngramMap.get(g).add(docId);
+        }
     }
-}
 
-class DNSCache {
+    // Analyze document similarity
+    public void analyzeDocument(String docId, String text) {
 
-    HashMap<String, DNSEntry> cache = new HashMap<>();
-    int hits = 0;
-    int misses = 0;
+        List<String> grams = generateNgrams(text, 3);
+        HashMap<String, Integer> matchCount = new HashMap<>();
 
-    // Resolve domain
-    public String resolve(String domain) {
+        for (String g : grams) {
 
-        if (cache.containsKey(domain)) {
-            DNSEntry entry = cache.get(domain);
+            if (ngramMap.containsKey(g)) {
 
-            if (!entry.isExpired()) {
-                hits++;
-                return "Cache HIT → " + entry.ip;
-            } else {
-                cache.remove(domain);
-                System.out.println("Cache EXPIRED");
+                for (String doc : ngramMap.get(g)) {
+
+                    if (!doc.equals(docId)) {
+                        matchCount.put(doc, matchCount.getOrDefault(doc, 0) + 1);
+                    }
+                }
             }
         }
 
-        misses++;
-        String ip = queryUpstream(domain);
+        for (String doc : matchCount.keySet()) {
 
-        cache.put(domain, new DNSEntry(ip, 10)); // TTL = 10 seconds
-        return "Cache MISS → " + ip;
-    }
+            int matches = matchCount.get(doc);
+            double similarity = (matches * 100.0) / grams.size();
 
-    // Simulate upstream DNS query
-    public String queryUpstream(String domain) {
-        return "192.168.1." + new Random().nextInt(255);
-    }
-
-    // Cache statistics
-    public void getCacheStats() {
-        int total = hits + misses;
-        double hitRate = total == 0 ? 0 : (hits * 100.0) / total;
-
-        System.out.println("Hits: " + hits);
-        System.out.println("Misses: " + misses);
-        System.out.println("Hit Rate: " + hitRate + "%");
+            System.out.println("Matches with " + doc + " → " + matches +
+                    " n-grams, Similarity: " + similarity + "%");
+        }
     }
 }
 
 public class Main {
+
     public static void main(String[] args) {
 
-        DNSCache dns = new DNSCache();
+        PlagiarismDetector obj = new PlagiarismDetector();
 
-        System.out.println(dns.resolve("google.com"));
-        System.out.println(dns.resolve("google.com"));
+        obj.addDocument("essay_089.txt",
+                "machine learning is used in many applications today");
 
-        dns.getCacheStats();
+        obj.addDocument("essay_092.txt",
+                "machine learning is used in many applications today and future");
+
+        obj.analyzeDocument("essay_123.txt",
+                "machine learning is used in many applications");
     }
 }
