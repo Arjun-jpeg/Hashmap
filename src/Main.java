@@ -1,51 +1,71 @@
 import java.util.*;
 
-class FlashSaleInventory {
+class DNSEntry {
+    String ip;
+    long expiryTime;
 
-    HashMap<String, Integer> stockMap = new HashMap<>();
-    HashMap<String, Queue<Integer>> waitingList = new HashMap<>();
-
-    // Check stock
-    public int checkStock(String productId) {
-        return stockMap.getOrDefault(productId, 0);
+    DNSEntry(String ip, int ttlSeconds) {
+        this.ip = ip;
+        this.expiryTime = System.currentTimeMillis() + (ttlSeconds * 1000);
     }
 
-    // Add product stock
-    public void addProduct(String productId, int stock) {
-        stockMap.put(productId, stock);
+    boolean isExpired() {
+        return System.currentTimeMillis() > expiryTime;
     }
+}
 
-    // Purchase item
-    public String purchaseItem(String productId, int userId) {
+class DNSCache {
 
-        int stock = stockMap.getOrDefault(productId, 0);
+    HashMap<String, DNSEntry> cache = new HashMap<>();
+    int hits = 0;
+    int misses = 0;
 
-        if (stock > 0) {
-            stockMap.put(productId, stock - 1);
-            return "Success, " + (stock - 1) + " units remaining";
+    // Resolve domain
+    public String resolve(String domain) {
+
+        if (cache.containsKey(domain)) {
+            DNSEntry entry = cache.get(domain);
+
+            if (!entry.isExpired()) {
+                hits++;
+                return "Cache HIT → " + entry.ip;
+            } else {
+                cache.remove(domain);
+                System.out.println("Cache EXPIRED");
+            }
         }
 
-        waitingList.putIfAbsent(productId, new LinkedList<>());
-        Queue<Integer> queue = waitingList.get(productId);
+        misses++;
+        String ip = queryUpstream(domain);
 
-        queue.add(userId);
+        cache.put(domain, new DNSEntry(ip, 10)); // TTL = 10 seconds
+        return "Cache MISS → " + ip;
+    }
 
-        return "Added to waiting list, position #" + queue.size();
+    // Simulate upstream DNS query
+    public String queryUpstream(String domain) {
+        return "192.168.1." + new Random().nextInt(255);
+    }
+
+    // Cache statistics
+    public void getCacheStats() {
+        int total = hits + misses;
+        double hitRate = total == 0 ? 0 : (hits * 100.0) / total;
+
+        System.out.println("Hits: " + hits);
+        System.out.println("Misses: " + misses);
+        System.out.println("Hit Rate: " + hitRate + "%");
     }
 }
 
 public class Main {
     public static void main(String[] args) {
 
-        FlashSaleInventory obj = new FlashSaleInventory();
+        DNSCache dns = new DNSCache();
 
-        obj.addProduct("IPHONE15_256GB", 3);
+        System.out.println(dns.resolve("google.com"));
+        System.out.println(dns.resolve("google.com"));
 
-        System.out.println(obj.checkStock("IPHONE15_256GB") + " units available");
-
-        System.out.println(obj.purchaseItem("IPHONE15_256GB", 12345));
-        System.out.println(obj.purchaseItem("IPHONE15_256GB", 67890));
-        System.out.println(obj.purchaseItem("IPHONE15_256GB", 22222));
-        System.out.println(obj.purchaseItem("IPHONE15_256GB", 99999));
+        dns.getCacheStats();
     }
 }
