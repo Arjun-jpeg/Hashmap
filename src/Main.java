@@ -1,54 +1,36 @@
 import java.util.*;
 
-class RateLimiter {
+class AutocompleteSystem {
 
-    class TokenBucket {
-        int tokens;
-        long lastReset;
+    HashMap<String, Integer> queryFreq = new HashMap<>();
 
-        TokenBucket(int maxTokens) {
-            this.tokens = maxTokens;
-            this.lastReset = System.currentTimeMillis();
-        }
+    // Add or update search query
+    public void updateFrequency(String query) {
+        queryFreq.put(query, queryFreq.getOrDefault(query, 0) + 1);
     }
 
-    HashMap<String, TokenBucket> clients = new HashMap<>();
+    // Get suggestions for a prefix
+    public List<String> search(String prefix) {
 
-    int MAX_REQUESTS = 5; // example limit (instead of 1000 for testing)
-    long WINDOW = 3600000; // 1 hour in milliseconds
+        List<Map.Entry<String, Integer>> matches = new ArrayList<>();
 
-    // Check rate limit
-    public String checkRateLimit(String clientId) {
-
-        clients.putIfAbsent(clientId, new TokenBucket(MAX_REQUESTS));
-        TokenBucket bucket = clients.get(clientId);
-
-        long now = System.currentTimeMillis();
-
-        // Reset after 1 hour
-        if (now - bucket.lastReset > WINDOW) {
-            bucket.tokens = MAX_REQUESTS;
-            bucket.lastReset = now;
+        for (Map.Entry<String, Integer> entry : queryFreq.entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                matches.add(entry);
+            }
         }
 
-        if (bucket.tokens > 0) {
-            bucket.tokens--;
-            return "Allowed (" + bucket.tokens + " requests remaining)";
+        // sort by frequency (highest first)
+        matches.sort((a, b) -> b.getValue() - a.getValue());
+
+        List<String> result = new ArrayList<>();
+        int limit = Math.min(10, matches.size());
+
+        for (int i = 0; i < limit; i++) {
+            result.add(matches.get(i).getKey() + " (" + matches.get(i).getValue() + ")");
         }
 
-        long retry = (WINDOW - (now - bucket.lastReset)) / 1000;
-        return "Denied (retry after " + retry + " seconds)";
-    }
-
-    // Show client status
-    public void getRateLimitStatus(String clientId) {
-
-        TokenBucket bucket = clients.get(clientId);
-
-        int used = MAX_REQUESTS - bucket.tokens;
-
-        System.out.println("Used: " + used);
-        System.out.println("Limit: " + MAX_REQUESTS);
+        return result;
     }
 }
 
@@ -56,15 +38,15 @@ public class Main {
 
     public static void main(String[] args) {
 
-        RateLimiter obj = new RateLimiter();
+        AutocompleteSystem obj = new AutocompleteSystem();
 
-        System.out.println(obj.checkRateLimit("abc123"));
-        System.out.println(obj.checkRateLimit("abc123"));
-        System.out.println(obj.checkRateLimit("abc123"));
-        System.out.println(obj.checkRateLimit("abc123"));
-        System.out.println(obj.checkRateLimit("abc123"));
-        System.out.println(obj.checkRateLimit("abc123"));
+        obj.updateFrequency("java tutorial");
+        obj.updateFrequency("javascript");
+        obj.updateFrequency("java download");
+        obj.updateFrequency("java tutorial");
+        obj.updateFrequency("java tutorial");
+        obj.updateFrequency("javascript");
 
-        obj.getRateLimitStatus("abc123");
+        System.out.println(obj.search("jav"));
     }
 }
