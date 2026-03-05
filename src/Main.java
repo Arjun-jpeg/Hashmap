@@ -1,68 +1,81 @@
 import java.util.*;
 
-class Transaction {
-    int id;
-    int amount;
-    String merchant;
+class MultiLevelCache {
 
-    Transaction(int id, int amount, String merchant) {
-        this.id = id;
-        this.amount = amount;
-        this.merchant = merchant;
+    // L1 Cache (Memory)
+    LinkedHashMap<String, String> L1 = new LinkedHashMap<>(16, 0.75f, true);
+
+    // L2 Cache (SSD simulation)
+    HashMap<String, String> L2 = new HashMap<>();
+
+    // L3 Database (All videos)
+    HashMap<String, String> L3 = new HashMap<>();
+
+    int L1_LIMIT = 3;
+
+    int l1Hits = 0;
+    int l2Hits = 0;
+    int l3Hits = 0;
+
+    // Add video to database
+    public void addVideo(String id, String data) {
+        L3.put(id, data);
     }
-}
 
-class FraudDetector {
+    // Get video
+    public String getVideo(String id) {
 
-    List<Transaction> transactions = new ArrayList<>();
-
-    // Add transaction
-    public void addTransaction(int id, int amount, String merchant) {
-        transactions.add(new Transaction(id, amount, merchant));
-    }
-
-    // Classic Two-Sum
-    public void findTwoSum(int target) {
-
-        HashMap<Integer, Transaction> map = new HashMap<>();
-
-        for (Transaction t : transactions) {
-
-            int complement = target - t.amount;
-
-            if (map.containsKey(complement)) {
-
-                Transaction other = map.get(complement);
-
-                System.out.println("Pair Found → (" + other.id + ", " + t.id + ")");
-                return;
-            }
-
-            map.put(t.amount, t);
+        // L1 Cache check
+        if (L1.containsKey(id)) {
+            l1Hits++;
+            return "L1 Cache HIT → " + L1.get(id);
         }
 
-        System.out.println("No pair found");
-    }
+        // L2 Cache check
+        if (L2.containsKey(id)) {
+            l2Hits++;
 
-    // Detect duplicate payments (same amount + merchant)
-    public void detectDuplicates() {
+            String data = L2.get(id);
+            promoteToL1(id, data);
 
-        HashMap<String, List<Integer>> map = new HashMap<>();
-
-        for (Transaction t : transactions) {
-
-            String key = t.amount + "-" + t.merchant;
-
-            map.putIfAbsent(key, new ArrayList<>());
-            map.get(key).add(t.id);
+            return "L2 Cache HIT → Promoted to L1";
         }
 
-        for (String key : map.keySet()) {
+        // L3 Database check
+        if (L3.containsKey(id)) {
+            l3Hits++;
 
-            if (map.get(key).size() > 1) {
-                System.out.println("Duplicate transaction → " + key +
-                        " IDs: " + map.get(key));
-            }
+            String data = L3.get(id);
+            L2.put(id, data);
+
+            return "L3 Database HIT → Added to L2";
+        }
+
+        return "Video Not Found";
+    }
+
+    // Promote video to L1 cache
+    public void promoteToL1(String id, String data) {
+
+        if (L1.size() >= L1_LIMIT) {
+            String firstKey = L1.keySet().iterator().next();
+            L1.remove(firstKey);
+        }
+
+        L1.put(id, data);
+    }
+
+    // Show statistics
+    public void getStatistics() {
+
+        int total = l1Hits + l2Hits + l3Hits;
+
+        System.out.println("L1 Hits: " + l1Hits);
+        System.out.println("L2 Hits: " + l2Hits);
+        System.out.println("L3 Hits: " + l3Hits);
+
+        if (total > 0) {
+            System.out.println("Overall Hit Rate: " + (100.0 * (l1Hits + l2Hits) / total) + "%");
         }
     }
 }
@@ -71,15 +84,16 @@ public class Main {
 
     public static void main(String[] args) {
 
-        FraudDetector obj = new FraudDetector();
+        MultiLevelCache cache = new MultiLevelCache();
 
-        obj.addTransaction(1, 500, "StoreA");
-        obj.addTransaction(2, 300, "StoreB");
-        obj.addTransaction(3, 200, "StoreC");
-        obj.addTransaction(4, 500, "StoreA");
+        cache.addVideo("video1", "Movie A");
+        cache.addVideo("video2", "Movie B");
+        cache.addVideo("video3", "Movie C");
 
-        obj.findTwoSum(500);
+        System.out.println(cache.getVideo("video1"));
+        System.out.println(cache.getVideo("video1"));
+        System.out.println(cache.getVideo("video2"));
 
-        obj.detectDuplicates();
+        cache.getStatistics();
     }
 }
