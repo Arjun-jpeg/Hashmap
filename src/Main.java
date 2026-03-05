@@ -1,36 +1,81 @@
 import java.util.*;
 
-class AutocompleteSystem {
+class ParkingLot {
 
-    HashMap<String, Integer> queryFreq = new HashMap<>();
+    class Spot {
+        String licensePlate;
+        long entryTime;
 
-    // Add or update search query
-    public void updateFrequency(String query) {
-        queryFreq.put(query, queryFreq.getOrDefault(query, 0) + 1);
+        Spot(String plate) {
+            this.licensePlate = plate;
+            this.entryTime = System.currentTimeMillis();
+        }
     }
 
-    // Get suggestions for a prefix
-    public List<String> search(String prefix) {
+    Spot[] table;
+    int size;
 
-        List<Map.Entry<String, Integer>> matches = new ArrayList<>();
+    ParkingLot(int capacity) {
+        table = new Spot[capacity];
+        size = capacity;
+    }
 
-        for (Map.Entry<String, Integer> entry : queryFreq.entrySet()) {
-            if (entry.getKey().startsWith(prefix)) {
-                matches.add(entry);
+    // Hash function
+    public int hash(String plate) {
+        return Math.abs(plate.hashCode()) % size;
+    }
+
+    // Park vehicle using linear probing
+    public void parkVehicle(String plate) {
+
+        int index = hash(plate);
+        int probes = 0;
+
+        while (table[index] != null) {
+            index = (index + 1) % size;
+            probes++;
+        }
+
+        table[index] = new Spot(plate);
+
+        System.out.println("Vehicle " + plate + " parked at spot #" + index +
+                " (" + probes + " probes)");
+    }
+
+    // Exit vehicle
+    public void exitVehicle(String plate) {
+
+        for (int i = 0; i < size; i++) {
+
+            if (table[i] != null && table[i].licensePlate.equals(plate)) {
+
+                long duration = (System.currentTimeMillis() - table[i].entryTime) / 1000;
+
+                table[i] = null;
+
+                System.out.println("Vehicle " + plate +
+                        " exited from spot #" + i +
+                        " Duration: " + duration + " seconds");
+                return;
             }
         }
 
-        // sort by frequency (highest first)
-        matches.sort((a, b) -> b.getValue() - a.getValue());
+        System.out.println("Vehicle not found");
+    }
 
-        List<String> result = new ArrayList<>();
-        int limit = Math.min(10, matches.size());
+    // Statistics
+    public void getStatistics() {
 
-        for (int i = 0; i < limit; i++) {
-            result.add(matches.get(i).getKey() + " (" + matches.get(i).getValue() + ")");
+        int occupied = 0;
+
+        for (Spot s : table) {
+            if (s != null)
+                occupied++;
         }
 
-        return result;
+        double occupancy = (occupied * 100.0) / size;
+
+        System.out.println("Occupancy: " + occupancy + "%");
     }
 }
 
@@ -38,15 +83,14 @@ public class Main {
 
     public static void main(String[] args) {
 
-        AutocompleteSystem obj = new AutocompleteSystem();
+        ParkingLot obj = new ParkingLot(10);
 
-        obj.updateFrequency("java tutorial");
-        obj.updateFrequency("javascript");
-        obj.updateFrequency("java download");
-        obj.updateFrequency("java tutorial");
-        obj.updateFrequency("java tutorial");
-        obj.updateFrequency("javascript");
+        obj.parkVehicle("ABC1234");
+        obj.parkVehicle("ABC1235");
+        obj.parkVehicle("XYZ9999");
 
-        System.out.println(obj.search("jav"));
+        obj.exitVehicle("ABC1234");
+
+        obj.getStatistics();
     }
 }
